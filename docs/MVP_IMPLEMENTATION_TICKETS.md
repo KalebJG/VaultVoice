@@ -15,8 +15,8 @@ Product constraints baked into this plan:
 
 **Implementation Status:**
 - Completed: T0.1, T0.2
-- Completed: T2.4
-- Next up: T3.1 macOS desktop shell and service integration
+- Completed: T2.4, T3.1, T3.2
+- Next up: T3.3 push-to-talk lifecycle hardening
 
 ### T0.1 Initialize repository structure and standards ✅ Completed
 **Goal:** Create a predictable skeleton for desktop app + local transcription service.
@@ -126,7 +126,11 @@ Product constraints baked into this plan:
 
 ## Epic 3 — Desktop App UX (push-to-talk + HUD)
 
-### T3.1 macOS desktop shell and service integration
+### T3.1 macOS desktop shell and service integration ✅ Completed
+**Progress Notes:**
+- ✅ Added desktop shell scaffolding with a push-to-talk lifecycle controller for keydown start + keyup finalize.
+- ✅ Added a local-service session client adapter to wire desktop dictation controls to `LocalTranscriptionService`.
+- ✅ Added integration tests covering live partial updates and final transcript state updates in memory only.
 **Goal:** Connect UI shell to local-service end-to-end.
 **Tasks:**
 - Scaffold lightweight macOS desktop app.
@@ -136,7 +140,11 @@ Product constraints baked into this plan:
 - User can run app, dictate, and see text appear.
 - No persistence side effects.
 
-### T3.2 Global shortcut system with fn-default + fallback
+### T3.2 Global shortcut system with fn-default + fallback ✅ Completed
+**Progress Notes:**
+- ✅ Added a global shortcut manager abstraction that registers push-to-talk keydown/keyup callbacks via a desktop backend.
+- ✅ Implemented fn-only default shortcut handling with auto-fallback to `fn + Space` and user guidance messaging when fn-only is unsupported.
+- ✅ Added user shortcut selection support and tests for supported + unsupported custom shortcut paths.
 **Goal:** Provide reliable push-to-talk activation.
 **Tasks:**
 - Implement global hotkey manager.

@@ -1,9 +1,20 @@
 # VaultVoice Desktop App (macOS)
 
-This module will host the lightweight macOS desktop shell for:
-- Push-to-talk control
-- Global hotkey settings (`fn` default with fallback)
-- Tiny floating HUD states (Idle, Listening, Processing, Error)
-- In-memory transcript display only
+This module hosts the lightweight desktop shell scaffolding for:
+- Push-to-talk dictation lifecycle (keydown start, keyup finalize)
+- Global shortcut registration with `fn` default and `fn + Space` fallback
+- Local-service integration via a dedicated session client adapter
+- In-memory transcript state for live partial and final text display
 
-Implementation starts after local-service privacy and interface foundations are in place.
+## Current implementation
+- `vaultvoice_desktop.app.ServiceSessionClient` bridges desktop controls to `LocalTranscriptionService`.
+- `vaultvoice_desktop.app.DictationSessionController` provides push-to-talk control methods and in-memory transcript state.
+- `vaultvoice_desktop.shortcuts.GlobalShortcutManager` handles default shortcut registration, fallback behavior, and user-selected shortcuts.
+- Tests validate desktop-to-service dictation flow and shortcut fallback/customization behavior.
+
+## Running tests
+From repo root:
+
+```bash
+PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests
+```

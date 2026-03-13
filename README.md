@@ -21,10 +21,9 @@ VaultVoice is a macOS-first, CPU-oriented dictation app focused on high-quality 
 Implementation sequencing is documented in:
 - `docs/MVP_IMPLEMENTATION_TICKETS.md`
 
-## Local Development (initial scaffold)
+## Local Development
 1. Create a Python 3.11+ virtual environment.
 2. Install local service dependencies from `apps/local-service/pyproject.toml`.
 3. Run tests from repository root:
    - `PYTHONPATH=apps/local-service/src python -m unittest discover -s apps/local-service/tests`
-
-> Note: This commit scaffolds architecture and guardrails, not full dictation/audio capture yet.
+   - `PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests`
