@@ -25,6 +25,6 @@ Implementation sequencing is documented in:
 1. Create a Python 3.11+ virtual environment.
 2. Install local service dependencies from `apps/local-service/pyproject.toml`.
 3. Run tests from repository root:
-   - `python -m unittest discover -s apps/local-service/tests`
+   - `PYTHONPATH=apps/local-service/src python -m unittest discover -s apps/local-service/tests`
 
 > Note: This commit scaffolds architecture and guardrails, not full dictation/audio capture yet.
