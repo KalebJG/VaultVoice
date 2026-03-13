@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from array import array
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -32,6 +32,44 @@ class AudioPreprocessor:
         if bytes_to_keep == 0:
             return b""
         return pcm_chunk[-bytes_to_keep:]
+
+
+@dataclass(slots=True)
+class MicrophoneChunker:
+    """Buffers live microphone frames into provider-sized PCM16 chunks."""
+
+    chunk_ms: int = 320
+    sample_rate_hz: int = 16000
+    bytes_per_sample: int = 2
+    _buffer: bytearray = field(default_factory=bytearray, init=False, repr=False)
+
+    def push_frame(self, pcm_frame: bytes) -> list[bytes]:
+        _ensure_pcm16_byte_alignment(pcm_frame)
+        if not pcm_frame:
+            return []
+
+        self._buffer.extend(pcm_frame)
+        chunk_size = self.chunk_size_bytes
+        chunks: list[bytes] = []
+
+        while len(self._buffer) >= chunk_size:
+            chunks.append(bytes(self._buffer[:chunk_size]))
+            del self._buffer[:chunk_size]
+
+        return chunks
+
+    def flush(self) -> bytes:
+        if not self._buffer:
+            return b""
+
+        remainder = bytes(self._buffer)
+        self._buffer.clear()
+        return remainder
+
+    @property
+    def chunk_size_bytes(self) -> int:
+        samples_per_chunk = int((self.chunk_ms / 1000) * self.sample_rate_hz)
+        return max(samples_per_chunk * self.bytes_per_sample, self.bytes_per_sample)
 
 
 def normalize_pcm16(pcm_chunk: bytes, target_peak: int = 12000) -> bytes:

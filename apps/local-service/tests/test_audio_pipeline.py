@@ -3,6 +3,7 @@ from array import array
 
 from vaultvoice_service.audio_pipeline import (
     AudioPreprocessor,
+    MicrophoneChunker,
     contains_speech,
     normalize_pcm16,
 )
@@ -33,6 +34,26 @@ class AudioPipelineTests(unittest.TestCase):
 
         self.assertTrue(result.is_speech)
         self.assertEqual(len(overlap), 200)
+
+
+    def test_microphone_chunker_buffers_until_chunk_boundary(self) -> None:
+        chunker = MicrophoneChunker(chunk_ms=100, sample_rate_hz=1000)
+
+        first = chunker.push_frame(b"\x01\x00" * 80)
+        second = chunker.push_frame(b"\x01\x00" * 40)
+
+        self.assertEqual(first, [])
+        self.assertEqual(len(second), 1)
+        self.assertEqual(len(second[0]), 200)
+
+    def test_microphone_chunker_flush_returns_remainder(self) -> None:
+        chunker = MicrophoneChunker(chunk_ms=100, sample_rate_hz=1000)
+        chunker.push_frame(b"\x01\x00" * 50)
+
+        tail = chunker.flush()
+
+        self.assertEqual(len(tail), 100)
+        self.assertEqual(chunker.flush(), b"")
 
     def test_invalid_odd_sized_pcm_chunk_raises(self) -> None:
         with self.assertRaises(ValueError):

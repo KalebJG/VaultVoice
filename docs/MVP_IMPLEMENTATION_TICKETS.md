@@ -15,7 +15,7 @@ Product constraints baked into this plan:
 
 **Implementation Status:**
 - Completed: T0.1, T0.2
-- Next up: Epic 2 audio pipeline work
+- Next up: T2.4 benchmark harness and baseline results
 
 ### T0.1 Initialize repository structure and standards ✅ Completed
 **Goal:** Create a predictable skeleton for desktop app + local transcription service.
@@ -67,8 +67,8 @@ Product constraints baked into this plan:
 ## Epic 2 — Core Local Transcription Engine (CPU accuracy-first)
 
 **Implementation Status:**
-- Completed: T2.1
-- In progress: T2.2 (preprocessing + silence skipping complete; mic capture pending)
+- Completed: T2.1, T2.2, T2.3
+- In progress: T2.4 (benchmark harness + baseline results)
 
 ### T2.1 Transcription provider interface and service skeleton ✅ Completed
 **Goal:** Decouple app from specific STT backend.
@@ -80,12 +80,12 @@ Product constraints baked into this plan:
 - Desktop app can call stable interface without provider-specific logic.
 - Service responds to health check and transcription lifecycle commands.
 
-### T2.2 Audio capture + preprocessing pipeline ⏳ In Progress
+### T2.2 Audio capture + preprocessing pipeline ✅ Completed
 **Goal:** Improve accuracy and CPU efficiency.
 **Progress Notes:**
 - ✅ Implemented normalization, VAD-style speech detection, and overlap forwarding in local-service preprocessing path.
 - ✅ Wired preprocessing into service stream flow so silence chunks are skipped before provider inference.
-- ⏳ Remaining: live microphone capture integration for real device input.
+- ✅ Added live microphone frame chunking in the service flow, including finalize-time flush of remaining buffered audio.
 **Tasks:**
 - Implement mic capture pipeline.
 - Add VAD-based chunking, normalization, and chunk overlap.
@@ -94,7 +94,11 @@ Product constraints baked into this plan:
 - Silence is mostly ignored.
 - Captured chunks feed inference without clipped first words under normal usage.
 
-### T2.3 Accuracy-first CPU profile with fallback
+### T2.3 Accuracy-first CPU profile with fallback ✅ Completed
+**Progress Notes:**
+- ✅ Added an accuracy-first profile controller that monitors CPU load windows and switches to a balanced fallback during sustained pressure.
+- ✅ Exposed active profile and fallback state via service health responses.
+- ✅ Added tests covering fallback activation and recovery after CPU pressure drops.
 **Goal:** Deliver highest practical quality on CPU while remaining usable.
 **Tasks:**
 - Set default `Accuracy` profile decoding parameters.

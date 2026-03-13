@@ -12,3 +12,6 @@ class TranscriptResult:
 class ServiceHealth:
     status: str
     retention_mode: str
+    active_profile: str = "accuracy"
+    fallback_active: bool = False
+    fallback_reason: str | None = None
