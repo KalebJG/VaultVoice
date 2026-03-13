@@ -15,7 +15,8 @@ Product constraints baked into this plan:
 
 **Implementation Status:**
 - Completed: T0.1, T0.2
-- Next up: T2.4 benchmark harness and baseline results
+- Completed: T2.4
+- Next up: T3.1 macOS desktop shell and service integration
 
 ### T0.1 Initialize repository structure and standards ✅ Completed
 **Goal:** Create a predictable skeleton for desktop app + local transcription service.
@@ -67,8 +68,7 @@ Product constraints baked into this plan:
 ## Epic 2 — Core Local Transcription Engine (CPU accuracy-first)
 
 **Implementation Status:**
-- Completed: T2.1, T2.2, T2.3
-- In progress: T2.4 (benchmark harness + baseline results)
+- Completed: T2.1, T2.2, T2.3, T2.4
 
 ### T2.1 Transcription provider interface and service skeleton ✅ Completed
 **Goal:** Decouple app from specific STT backend.
@@ -108,7 +108,11 @@ Product constraints baked into this plan:
 - Default mode prioritizes quality.
 - Service degrades gracefully on sustained CPU pressure.
 
-### T2.4 Benchmark harness and baseline results
+### T2.4 Benchmark harness and baseline results ✅ Completed
+**Progress Notes:**
+- ✅ Added `apps/local-service/benchmarks/run_benchmark.py` to execute reproducible short-form benchmark runs and output JSON metrics.
+- ✅ Added `apps/local-service/benchmarks/dataset_manifest.json` for clean + moderate-noise case definitions.
+- ✅ Published initial baseline report in `docs/stt-baseline.md`.
 **Goal:** Validate quality/perf objectively before UI polish.
 **Tasks:**
 - Create benchmark script + dataset manifest in `apps/local-service/benchmarks`.
@@ -180,9 +184,11 @@ Product constraints baked into this plan:
 **Tasks:**
 - Add integration tests for hotkey lifecycle, dictation flow, no-retention invariants.
 - Add smoke checklist for macOS manual QA.
+- Define one canonical local-service test command that runs in a clean environment without manual `PYTHONPATH` setup, and enforce it in CI.
 **Acceptance Criteria:**
 - Critical flows are tested and repeatable.
 - No-retention checks are part of release gate.
+- Contributors can run tests with the documented command without import-path failures.
 
 ### T4.3 MVP packaging and release checklist
 **Goal:** Ship a usable internal/alpha build.

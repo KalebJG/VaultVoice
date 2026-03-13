@@ -1,0 +1,38 @@
+{
+  "description": "Synthetic short-form dictation benchmark cases for VaultVoice MVP harness.",
+  "sample_rate_hz": 16000,
+  "cases": [
+    {
+      "id": "clean_email",
+      "condition": "clean",
+      "reference": "Email Alex that I will arrive in ten minutes",
+      "hypothesis": "Email Alex that I will arrive in ten minutes",
+      "duration_ms": 1200,
+      "inference_delay_ms": 70
+    },
+    {
+      "id": "clean_reminder",
+      "condition": "clean",
+      "reference": "Remind me to send the quarterly report tonight",
+      "hypothesis": "Remind me to send quarterly report tonight",
+      "duration_ms": 1400,
+      "inference_delay_ms": 85
+    },
+    {
+      "id": "noise_coffee_shop",
+      "condition": "moderate_noise",
+      "reference": "Schedule a dentist appointment for next Thursday morning",
+      "hypothesis": "Schedule a dentist appointment for next Thursday",
+      "duration_ms": 1500,
+      "inference_delay_ms": 110
+    },
+    {
+      "id": "noise_street",
+      "condition": "moderate_noise",
+      "reference": "Draft a follow up note for the design review",
+      "hypothesis": "Draft a follow-up note for design review",
+      "duration_ms": 1300,
+      "inference_delay_ms": 115
+    }
+  ]
+}

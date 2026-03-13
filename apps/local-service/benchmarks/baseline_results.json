@@ -1,0 +1,63 @@
+{
+  "manifest": "/workspace/VaultVoice/apps/local-service/benchmarks/dataset_manifest.json",
+  "aggregate": {
+    "total_cases": 4,
+    "avg_wer": 0.0903,
+    "p95_latency_ms": 115.17,
+    "avg_rtf": 0.07
+  },
+  "by_condition": {
+    "moderate_noise": {
+      "avg_wer": 0.1181,
+      "avg_latency_ms": 112.69,
+      "avg_rtf": 0.081
+    },
+    "clean": {
+      "avg_wer": 0.0625,
+      "avg_latency_ms": 77.69,
+      "avg_rtf": 0.059
+    }
+  },
+  "cases": [
+    {
+      "id": "clean_email",
+      "condition": "clean",
+      "reference": "Email Alex that I will arrive in ten minutes",
+      "hypothesis": "Email Alex that I will arrive in ten minutes",
+      "duration_ms": 1200,
+      "latency_ms": 70.19,
+      "rtf": 0.058,
+      "wer": 0.0
+    },
+    {
+      "id": "clean_reminder",
+      "condition": "clean",
+      "reference": "Remind me to send the quarterly report tonight",
+      "hypothesis": "Remind me to send quarterly report tonight",
+      "duration_ms": 1400,
+      "latency_ms": 85.19,
+      "rtf": 0.061,
+      "wer": 0.125
+    },
+    {
+      "id": "noise_coffee_shop",
+      "condition": "moderate_noise",
+      "reference": "Schedule a dentist appointment for next Thursday morning",
+      "hypothesis": "Schedule a dentist appointment for next Thursday",
+      "duration_ms": 1500,
+      "latency_ms": 110.2,
+      "rtf": 0.073,
+      "wer": 0.125
+    },
+    {
+      "id": "noise_street",
+      "condition": "moderate_noise",
+      "reference": "Draft a follow up note for the design review",
+      "hypothesis": "Draft a follow-up note for design review",
+      "duration_ms": 1300,
+      "latency_ms": 115.17,
+      "rtf": 0.089,
+      "wer": 0.1111
+    }
+  ]
+}
