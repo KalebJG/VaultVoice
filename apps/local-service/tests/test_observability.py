@@ -10,6 +10,7 @@ from vaultvoice_service.models import TranscriptResult
 class _FixedProvider(TranscriptionProvider):
     def __init__(self) -> None:
         self.last_chunk: bytes | None = None
+        self.chunks: list[bytes] = []
 
     def start_session(self) -> str:
         return "session-1"
@@ -17,6 +18,7 @@ class _FixedProvider(TranscriptionProvider):
     def transcribe_chunk(self, session_id: str, pcm_chunk: bytes) -> TranscriptResult:
         _ = session_id
         self.last_chunk = pcm_chunk
+        self.chunks.append(pcm_chunk)
         return TranscriptResult(text="", is_final=False)
 
     def finalize_session(self, session_id: str) -> TranscriptResult:
@@ -28,6 +30,20 @@ class _FailingProvider(_FixedProvider):
     def transcribe_chunk(self, session_id: str, pcm_chunk: bytes) -> TranscriptResult:
         _ = (session_id, pcm_chunk)
         raise RuntimeError("provider error")
+
+
+
+
+class _CpuSequenceMetrics(PrivacySafeMetrics):
+    def __init__(self, loads: list[float | None]) -> None:
+        super().__init__()
+        self._loads = list(loads)
+
+    def snapshot(self):
+        load = self._loads.pop(0) if self._loads else None
+        snap = super().snapshot()
+        snap.cpu_load = load
+        return snap
 
 
 class ObservabilityTests(unittest.TestCase):
@@ -75,6 +91,50 @@ class ObservabilityTests(unittest.TestCase):
 
         expected_overlap = service.preprocessor.overlap_bytes(first_chunk)
         self.assertEqual(provider.last_chunk, expected_overlap + second_chunk)
+
+
+    def test_microphone_frames_chunked_and_flushed_on_finalize(self) -> None:
+        provider = _FixedProvider()
+        service = LocalTranscriptionService(provider=provider)
+        session_id = service.start()
+
+        frame = b"\xe8\x03" * 6000
+        partials = service.stream_microphone_frame(session_id, frame)
+        final = service.finalize(session_id)
+
+        self.assertEqual(len(partials), 1)
+        self.assertTrue(all(not result.is_final for result in partials))
+        self.assertTrue(final.is_final)
+        self.assertEqual(len(provider.chunks), 2)
+        self.assertEqual(len(provider.chunks[0]), 10240)
+        self.assertEqual(len(provider.chunks[1]), 5600)
+
+
+    def test_health_surfaces_active_profile_and_fallback_state(self) -> None:
+        metrics = _CpuSequenceMetrics([1.0, 1.0, 1.0])
+        service = LocalTranscriptionService(provider=_FixedProvider(), metrics=metrics)
+        session_id = service.start()
+
+        for _ in range(3):
+            service.stream_chunk(session_id, b"\xe8\x03" * 200)
+
+        health = service.health()
+        self.assertEqual(health.active_profile, "balanced")
+        self.assertTrue(health.fallback_active)
+        self.assertEqual(health.fallback_reason, "sustained_cpu_pressure")
+
+    def test_profile_recovers_after_cpu_pressure_drops(self) -> None:
+        metrics = _CpuSequenceMetrics([1.0, 1.0, 1.0, 0.1, 0.1, 0.1])
+        service = LocalTranscriptionService(provider=_FixedProvider(), metrics=metrics)
+        session_id = service.start()
+
+        for _ in range(6):
+            service.stream_chunk(session_id, b"\xe8\x03" * 200)
+
+        health = service.health()
+        self.assertEqual(health.active_profile, "accuracy")
+        self.assertFalse(health.fallback_active)
+        self.assertIsNone(health.fallback_reason)
 
     def test_metrics_record_errors(self) -> None:
         service = LocalTranscriptionService(provider=_FailingProvider())
