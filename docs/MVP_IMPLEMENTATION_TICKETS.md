@@ -13,7 +13,11 @@ Product constraints baked into this plan:
 
 ## Epic 0 — Project Foundation (must complete first)
 
-### T0.1 Initialize repository structure and standards
+**Implementation Status:**
+- Completed: T0.1, T0.2
+- Next up: Epic 2 audio pipeline work
+
+### T0.1 Initialize repository structure and standards ✅ Completed
 **Goal:** Create a predictable skeleton for desktop app + local transcription service.
 **Tasks:**
 - Create folders: `apps/desktop`, `apps/local-service`, `docs`.
@@ -23,7 +27,7 @@ Product constraints baked into this plan:
 - Team can clone repo and understand module boundaries from README.
 - Standards doc defines no-transcript logging rule.
 
-### T0.2 Finalize PRD and acceptance metrics
+### T0.2 Finalize PRD and acceptance metrics ✅ Completed
 **Goal:** Lock scope to prevent drift.
 **Tasks:**
 - Create `docs/PRD.md` with confirmed decisions and non-goals.
@@ -36,7 +40,10 @@ Product constraints baked into this plan:
 
 ## Epic 1 — Security/Privacy Guardrails (before core features)
 
-### T1.1 Implement no-retention policy framework
+**Implementation Status:**
+- Completed: T1.1, T1.2
+
+### T1.1 Implement no-retention policy framework ✅ Completed
 **Goal:** Ensure architecture cannot accidentally persist user speech data.
 **Tasks:**
 - Create `docs/privacy-model.md` with data lifecycle (audio + transcript in-memory only).
@@ -46,7 +53,7 @@ Product constraints baked into this plan:
 - No transcript/audio written to files, temp dirs, db, or crash payloads in default mode.
 - Policy documented and testable.
 
-### T1.2 Privacy-safe observability
+### T1.2 Privacy-safe observability ✅ Completed
 **Goal:** Collect health metrics without collecting user content.
 **Tasks:**
 - Implement structured metrics for latency, chunk count, errors, CPU load.
@@ -59,7 +66,11 @@ Product constraints baked into this plan:
 
 ## Epic 2 — Core Local Transcription Engine (CPU accuracy-first)
 
-### T2.1 Transcription provider interface and service skeleton
+**Implementation Status:**
+- Completed: T2.1
+- In progress: T2.2 (preprocessing + silence skipping complete; mic capture pending)
+
+### T2.1 Transcription provider interface and service skeleton ✅ Completed
 **Goal:** Decouple app from specific STT backend.
 **Tasks:**
 - Define `TranscriptionProvider` contract in `apps/local-service`.
@@ -69,8 +80,12 @@ Product constraints baked into this plan:
 - Desktop app can call stable interface without provider-specific logic.
 - Service responds to health check and transcription lifecycle commands.
 
-### T2.2 Audio capture + preprocessing pipeline
+### T2.2 Audio capture + preprocessing pipeline ⏳ In Progress
 **Goal:** Improve accuracy and CPU efficiency.
+**Progress Notes:**
+- ✅ Implemented normalization, VAD-style speech detection, and overlap forwarding in local-service preprocessing path.
+- ✅ Wired preprocessing into service stream flow so silence chunks are skipped before provider inference.
+- ⏳ Remaining: live microphone capture integration for real device input.
 **Tasks:**
 - Implement mic capture pipeline.
 - Add VAD-based chunking, normalization, and chunk overlap.
