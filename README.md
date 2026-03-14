@@ -40,6 +40,21 @@ Implementation sequencing is documented in:
    - `PYTHONPATH=apps/local-service/src python -m unittest discover -s apps/local-service/tests`
    - `PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests`
 
+### Quick run benchmark
+From repo root, run:
+
+```bash
+./scripts/run-benchmark.sh --output results.json
+```
+
+The benchmark defaults to `apps/local-service/benchmarks/dataset_manifest.json` when `--manifest` is not specified.
+
+If you prefer direct Python execution, use:
+
+```bash
+python apps/local-service/benchmarks/run_benchmark.py --output results.json
+```
+
 ### Running with the real local provider
 From repo root:
 
