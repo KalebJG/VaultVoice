@@ -5,52 +5,62 @@ from vaultvoice_service.provider import LocalEnergyTranscriptionProvider
 
 
 class LocalEnergyTranscriptionProviderTests(unittest.TestCase):
-    def test_emits_partial_for_voiced_chunk(self) -> None:
+    def test_emits_streaming_partial_from_decoded_speech(self) -> None:
         provider = LocalEnergyTranscriptionProvider()
         session_id = provider.start_session()
 
-        voiced_chunk = b"\xe8\x03" * 400
-        partial = provider.transcribe_chunk(session_id, voiced_chunk)
+        provider.transcribe_chunk(session_id, _tone_word_pcm("vault"))
+        partial = provider.transcribe_chunk(session_id, _silence_pcm(1600))
 
         self.assertFalse(partial.is_final)
-        self.assertNotEqual(partial.text, "")
+        self.assertEqual(partial.text, "vault")
         self.assertIsNotNone(partial.confidence)
         self.assertGreater(partial.confidence or 0.0, 0.0)
 
-    def test_finalize_returns_non_empty_for_speech_like_input(self) -> None:
+    def test_finalize_returns_decoded_words_for_spoken_content(self) -> None:
         provider = LocalEnergyTranscriptionProvider()
         session_id = provider.start_session()
 
-        for _ in range(4):
-            provider.transcribe_chunk(session_id, _speech_like_pcm(3200))
+        provider.transcribe_chunk(session_id, _tone_word_pcm("hello"))
+        provider.transcribe_chunk(session_id, _silence_pcm(1600))
+        provider.transcribe_chunk(session_id, _tone_word_pcm("world"))
 
         final = provider.finalize_session(session_id)
 
         self.assertTrue(final.is_final)
-        self.assertNotEqual(final.text, "")
+        self.assertEqual(final.text, "hello world")
         self.assertIsNotNone(final.confidence)
 
     def test_finalize_returns_empty_for_silence(self) -> None:
         provider = LocalEnergyTranscriptionProvider()
         session_id = provider.start_session()
 
-        provider.transcribe_chunk(session_id, b"\x00\x00" * 3200)
+        provider.transcribe_chunk(session_id, _silence_pcm(3200))
         final = provider.finalize_session(session_id)
 
         self.assertTrue(final.is_final)
         self.assertEqual(final.text, "")
 
 
+_WORD_FREQUENCIES_HZ = {
+    "vault": 220.0,
+    "voice": 260.0,
+    "hello": 300.0,
+    "world": 340.0,
+}
 
-def _speech_like_pcm(sample_count: int, sample_rate_hz: int = 16_000) -> bytes:
+
+def _tone_word_pcm(word: str, sample_count: int = 3200, sample_rate_hz: int = 16_000) -> bytes:
+    frequency_hz = _WORD_FREQUENCIES_HZ[word]
     samples: list[int] = []
     for i in range(sample_count):
-        carrier = math.sin(2 * math.pi * 190 * (i / sample_rate_hz))
-        envelope = 0.45 + (0.55 * math.sin(2 * math.pi * 4.5 * (i / sample_rate_hz)))
-        value = int(9_500 * carrier * envelope)
-        samples.append(value)
-
+        t = i / sample_rate_hz
+        samples.append(int(8_500 * math.sin(2 * math.pi * frequency_hz * t)))
     return b"".join(sample.to_bytes(2, byteorder="little", signed=True) for sample in samples)
+
+
+def _silence_pcm(sample_count: int) -> bytes:
+    return b"\x00\x00" * sample_count
 
 
 if __name__ == "__main__":

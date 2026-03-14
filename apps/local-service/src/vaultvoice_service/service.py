@@ -8,7 +8,7 @@ from .audio_pipeline import AudioPreprocessor, MicrophoneChunker
 from .models import ServiceHealth, TranscriptResult
 from .observability import MetricsSnapshot, PrivacySafeMetrics
 from .profile import AccuracyProfileController
-from .provider import LocalEnergyTranscriptionProvider, LocalStubProvider, TranscriptionProvider
+from .provider import LocalSTTTranscriptionProvider, LocalStubProvider, TranscriptionProvider
 from .retention import RetentionPolicy
 
 
@@ -24,7 +24,7 @@ def _default_provider() -> TranscriptionProvider:
         "on",
     }
     if use_real_provider:
-        return LocalEnergyTranscriptionProvider()
+        return LocalSTTTranscriptionProvider()
     return LocalStubProvider()
 
 
