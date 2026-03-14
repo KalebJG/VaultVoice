@@ -1,5 +1,6 @@
 import unittest
 from dataclasses import dataclass, field
+import math
 
 from vaultvoice_desktop.app import DictationSessionController, ServiceSessionClient
 from vaultvoice_desktop.hud import FloatingHUDController, HUDStatus
@@ -57,6 +58,21 @@ class _FailingFinalizeClient(_FakeSessionClient):
 
 
 class DictationSessionControllerTests(unittest.TestCase):
+    def test_integration_real_provider_returns_non_empty_final_text(self) -> None:
+        service = LocalTranscriptionService()
+        controller = DictationSessionController(client=ServiceSessionClient(service=service))
+
+        controller.key_down()
+        controller.push_microphone_frame(_speech_like_pcm(4096))
+        controller.push_microphone_frame(_speech_like_pcm(4096, phase_offset=0.15))
+        final = controller.key_up()
+
+        self.assertIsNotNone(final)
+        assert final is not None
+        self.assertTrue(final.is_final)
+        self.assertNotEqual(final.text.strip(), "")
+        self.assertNotEqual(controller.transcript.final_text.strip(), "")
+
     def test_push_to_talk_session_updates_partial_and_final_transcript(self) -> None:
         service = LocalTranscriptionService(provider=_DesktopProvider())
         controller = DictationSessionController(client=ServiceSessionClient(service=service))
@@ -154,3 +170,15 @@ class DictationSessionControllerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _speech_like_pcm(sample_count: int, sample_rate_hz: int = 16_000, phase_offset: float = 0.0) -> bytes:
+    samples: list[int] = []
+    for i in range(sample_count):
+        t = (i / sample_rate_hz) + phase_offset
+        carrier = math.sin(2 * math.pi * 220 * t)
+        envelope = 0.35 + (0.65 * (0.5 + 0.5 * math.sin(2 * math.pi * 5.0 * t)))
+        value = int(10_000 * carrier * envelope)
+        samples.append(value)
+
+    return b"".join(sample.to_bytes(2, byteorder="little", signed=True) for sample in samples)

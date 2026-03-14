@@ -1,18 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from os import getenv
 
 from .audio_pipeline import AudioPreprocessor, MicrophoneChunker
 from .models import ServiceHealth, TranscriptResult
 from .observability import MetricsSnapshot, PrivacySafeMetrics
 from .profile import AccuracyProfileController
-from .provider import LocalStubProvider, TranscriptionProvider
+from .provider import LocalEnergyTranscriptionProvider, LocalStubProvider, TranscriptionProvider
 from .retention import RetentionPolicy
+
+
+def _default_provider() -> TranscriptionProvider:
+    use_real_provider = getenv("VAULTVOICE_USE_REAL_PROVIDER", "1").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if use_real_provider:
+        return LocalEnergyTranscriptionProvider()
+    return LocalStubProvider()
 
 
 @dataclass
 class LocalTranscriptionService:
-    provider: TranscriptionProvider = field(default_factory=LocalStubProvider)
+    provider: TranscriptionProvider = field(default_factory=_default_provider)
     retention: RetentionPolicy = field(default_factory=RetentionPolicy)
     metrics: PrivacySafeMetrics = field(default_factory=PrivacySafeMetrics)
     preprocessor: AudioPreprocessor = field(default_factory=AudioPreprocessor)

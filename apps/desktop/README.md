@@ -20,3 +20,23 @@ From repo root:
 ```bash
 PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests
 ```
+
+## Runtime requirements
+- Python 3.11+
+- Local service import path available via `PYTHONPATH=apps/local-service/src:apps/desktop/src`
+- Real provider path expects 16-bit PCM mono audio at 16 kHz and is enabled by default.
+
+## Running with the real provider
+`LocalTranscriptionService` uses the concrete local provider by default. You can run the integration test directly:
+
+```bash
+VAULTVOICE_USE_REAL_PROVIDER=1 \
+PYTHONPATH=apps/local-service/src:apps/desktop/src \
+python -m unittest apps.desktop.tests.test_app.DictationSessionControllerTests.test_integration_real_provider_returns_non_empty_final_text
+```
+
+To switch back to the stub provider for scaffolding-only behavior:
+
+```bash
+VAULTVOICE_USE_REAL_PROVIDER=0 PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests
+```

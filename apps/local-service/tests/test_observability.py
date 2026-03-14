@@ -1,4 +1,5 @@
 import unittest
+from os import environ
 
 from vaultvoice_service.logging_utils import assert_safe_log_fields
 from vaultvoice_service.observability import PrivacySafeMetrics
@@ -47,6 +48,25 @@ class _CpuSequenceMetrics(PrivacySafeMetrics):
 
 
 class ObservabilityTests(unittest.TestCase):
+    def test_service_uses_stub_provider_when_flag_disabled(self) -> None:
+        original = environ.get("VAULTVOICE_USE_REAL_PROVIDER")
+        environ["VAULTVOICE_USE_REAL_PROVIDER"] = "0"
+        try:
+            service = LocalTranscriptionService()
+            session_id = service.start()
+            partial = service.stream_chunk(session_id, b"\xe8\x03" * 160)
+            final = service.finalize(session_id)
+        finally:
+            if original is None:
+                environ.pop("VAULTVOICE_USE_REAL_PROVIDER", None)
+            else:
+                environ["VAULTVOICE_USE_REAL_PROVIDER"] = original
+
+        self.assertEqual(partial.text, "")
+        self.assertFalse(partial.is_final)
+        self.assertEqual(final.text, "")
+        self.assertTrue(final.is_final)
+
     def test_metrics_capture_session_chunk_and_latencies(self) -> None:
         service = LocalTranscriptionService(provider=_FixedProvider())
 
