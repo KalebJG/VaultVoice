@@ -18,7 +18,7 @@ This module hosts the lightweight desktop shell scaffolding for:
 From repo root:
 
 ```bash
-PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests
+PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests -t .
 ```
 
 ## Runtime requirements
@@ -38,5 +38,5 @@ python -m unittest apps.desktop.tests.test_app.DictationSessionControllerTests.t
 To switch back to the stub provider for scaffolding-only behavior:
 
 ```bash
-VAULTVOICE_USE_REAL_PROVIDER=0 PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests
+VAULTVOICE_USE_REAL_PROVIDER=0 PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests -t .
 ```

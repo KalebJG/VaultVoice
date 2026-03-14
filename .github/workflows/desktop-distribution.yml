@@ -1,0 +1,78 @@
+name: Desktop Distribution
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: macos-14
+    defaults:
+      run:
+        shell: bash
+    env:
+      DIST_DIR: dist/desktop
+      APP_NAME: VaultVoice
+      INSTALL_PATH: /Applications/VaultVoice.app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Resolve release version
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-dev+${GITHUB_SHA::7}"
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Run desktop + local-service tests
+        run: |
+          PYTHONPATH=apps/local-service/src python -m unittest discover -s apps/local-service/tests -t .
+          PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests -t .
+
+      - name: Create versioned desktop artifact
+        run: |
+          mkdir -p "$DIST_DIR"
+          ARTIFACT_ROOT="$DIST_DIR/${APP_NAME}-${VERSION}"
+          mkdir -p "$ARTIFACT_ROOT"
+          cp -R apps/desktop "$ARTIFACT_ROOT/desktop"
+          cat > "$ARTIFACT_ROOT/RELEASE_METADATA.json" <<EOF
+          {
+            "app_name": "${APP_NAME}",
+            "version": "${VERSION}",
+            "install_path": "${INSTALL_PATH}",
+            "signing": {
+              "status": "unsigned",
+              "strategy": "Sign + notarize with Developer ID in distribution promotion workflow before end-user release"
+            }
+          }
+          EOF
+          tar -czf "$DIST_DIR/${APP_NAME}-${VERSION}.tar.gz" -C "$DIST_DIR" "${APP_NAME}-${VERSION}"
+          shasum -a 256 "$DIST_DIR/${APP_NAME}-${VERSION}.tar.gz" > "$DIST_DIR/${APP_NAME}-${VERSION}.sha256"
+
+      - name: Upload distribution artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ env.VERSION }}
+          path: dist/desktop
+
+      - name: Attach artifacts to GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/desktop/*.tar.gz
+            dist/desktop/*.sha256
+          generate_release_notes: true

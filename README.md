@@ -21,16 +21,28 @@ VaultVoice is a macOS-first, CPU-oriented dictation app focused on high-quality 
 Implementation sequencing is documented in:
 - `docs/MVP_IMPLEMENTATION_TICKETS.md`
 
+## Onboarding Guides
+- Shortcut setup and fallback behavior: `docs/onboarding-shortcuts.md`
+- macOS microphone permission setup: `docs/onboarding-macos-mic-permissions.md`
+
+## Release Operations
+- Desktop packaging/distribution pipeline: `docs/desktop-distribution.md`
+- Release gate checklist: `docs/release-checklist.md`
+
 ## Local Development
-1. Create a Python 3.11+ virtual environment.
-2. Install local service dependencies from `apps/local-service/pyproject.toml`.
-3. Runtime requirement for the real local provider: 16-bit PCM mono audio at 16 kHz (the desktop app already streams this format).
-4. Provider selection is controlled with `VAULTVOICE_USE_REAL_PROVIDER`:
+1. Clone the repository and change into it (`cd VaultVoice`).
+2. Create and activate a Python 3.11+ virtual environment.
+3. Install local service dependencies from `apps/local-service/pyproject.toml`.
+4. Runtime requirement for the real local provider: 16-bit PCM mono audio at 16 kHz (the desktop app already streams this format).
+5. Provider selection is controlled with `VAULTVOICE_USE_REAL_PROVIDER`:
    - `1` / `true` / `yes` / `on` (default): use `LocalEnergyTranscriptionProvider`.
    - `0` / `false` / `no` / `off`: force `LocalStubProvider` for scaffolding/tests.
-5. Run tests from repository root:
-   - `PYTHONPATH=apps/local-service/src python -m unittest discover -s apps/local-service/tests`
-   - `PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests`
+6. Simplest local validation (works even when invoked outside repo root):
+   - `./scripts/run-local-checks.sh`
+
+If you prefer manual test commands, run from repository root:
+- `PYTHONPATH=apps/local-service/src python -m unittest discover -s apps/local-service/tests -t .`
+- `PYTHONPATH=apps/local-service/src:apps/desktop/src python -m unittest discover -s apps/desktop/tests -t .`
 
 ### Running with the real local provider
 From repo root:
