@@ -90,20 +90,22 @@ class _SlowFinalizeClient(_FakeSessionClient):
 
 
 class DictationSessionControllerTests(unittest.TestCase):
-    def test_integration_real_provider_returns_non_empty_final_text(self) -> None:
+    def test_integration_real_provider_returns_decoded_spoken_words(self) -> None:
         service = LocalTranscriptionService()
         controller = DictationSessionController(client=ServiceSessionClient(service=service))
 
         controller.key_down()
-        controller.push_microphone_frame(_speech_like_pcm(4096))
-        controller.push_microphone_frame(_speech_like_pcm(4096, phase_offset=0.15))
+        controller.push_microphone_frame(_tone_word_pcm("hello"))
+        controller.push_microphone_frame(_silence_pcm(1600))
+        controller.push_microphone_frame(_tone_word_pcm("world"))
         final = controller.key_up()
 
         self.assertIsNotNone(final)
         assert final is not None
         self.assertTrue(final.is_final)
-        self.assertNotEqual(final.text.strip(), "")
-        self.assertNotEqual(controller.transcript.final_text.strip(), "")
+        self.assertEqual(final.text, "hello world")
+        self.assertEqual(controller.transcript.final_text, "hello world")
+        self.assertNotIn("final-", final.text)
 
     def test_push_to_talk_session_updates_partial_and_final_transcript(self) -> None:
         service = LocalTranscriptionService(provider=_DesktopProvider())
@@ -192,13 +194,23 @@ if __name__ == "__main__":
     unittest.main()
 
 
-def _speech_like_pcm(sample_count: int, sample_rate_hz: int = 16_000, phase_offset: float = 0.0) -> bytes:
+_WORD_FREQUENCIES_HZ = {
+    "vault": 220.0,
+    "voice": 260.0,
+    "hello": 300.0,
+    "world": 340.0,
+}
+
+
+def _tone_word_pcm(word: str, sample_count: int = 3200, sample_rate_hz: int = 16_000) -> bytes:
+    frequency_hz = _WORD_FREQUENCIES_HZ[word]
     samples: list[int] = []
     for i in range(sample_count):
-        t = (i / sample_rate_hz) + phase_offset
-        carrier = math.sin(2 * math.pi * 220 * t)
-        envelope = 0.35 + (0.65 * (0.5 + 0.5 * math.sin(2 * math.pi * 5.0 * t)))
-        value = int(10_000 * carrier * envelope)
-        samples.append(value)
+        t = i / sample_rate_hz
+        samples.append(int(8_500 * math.sin(2 * math.pi * frequency_hz * t)))
 
     return b"".join(sample.to_bytes(2, byteorder="little", signed=True) for sample in samples)
+
+
+def _silence_pcm(sample_count: int) -> bytes:
+    return b"\x00\x00" * sample_count
