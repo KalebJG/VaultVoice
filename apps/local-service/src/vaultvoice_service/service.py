@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from os import getenv
+from typing import Literal
 
 from .audio_pipeline import AudioPreprocessor, MicrophoneChunker
 from .models import ServiceHealth, TranscriptResult
@@ -9,6 +10,10 @@ from .observability import MetricsSnapshot, PrivacySafeMetrics
 from .profile import AccuracyProfileController
 from .provider import LocalEnergyTranscriptionProvider, LocalStubProvider, TranscriptionProvider
 from .retention import RetentionPolicy
+
+
+ServiceStatus = Literal["connected", "degraded", "disconnected"]
+MicStatus = Literal["available", "permission_required", "device_unavailable"]
 
 
 def _default_provider() -> TranscriptionProvider:
@@ -32,22 +37,42 @@ class LocalTranscriptionService:
     profile_controller: AccuracyProfileController = field(default_factory=AccuracyProfileController)
     _session_overlap: dict[str, bytes] = field(default_factory=dict)
     _session_chunkers: dict[str, MicrophoneChunker] = field(default_factory=dict)
+    _microphone_status: MicStatus = "available"
+    _provider_status: ServiceStatus = "connected"
 
     def health(self) -> ServiceHealth:
         self.retention.assert_memory_only()
         state = self.profile_controller.state
+        status = "ok" if self._provider_status == "connected" else "degraded"
         return ServiceHealth(
-            status="ok",
+            status=status,
             retention_mode=self.retention.mode,
             active_profile=state.active_profile,
             fallback_active=state.fallback_active,
             fallback_reason=state.fallback_reason,
+            microphone_status=self._microphone_status,
+            provider_status=self._provider_status,
         )
 
     def start(self) -> str:
         self.retention.assert_memory_only()
         self.metrics.session_started()
-        session_id = self.provider.start_session()
+        try:
+            session_id = self.provider.start_session()
+        except PermissionError:
+            self._microphone_status = "permission_required"
+            self._provider_status = "degraded"
+            raise
+        except OSError:
+            self._microphone_status = "device_unavailable"
+            self._provider_status = "degraded"
+            raise
+        except Exception:
+            self._provider_status = "degraded"
+            raise
+
+        self._microphone_status = "available"
+        self._provider_status = "connected"
         self._session_overlap[session_id] = b""
         self._session_chunkers[session_id] = MicrophoneChunker(
             sample_rate_hz=self.preprocessor.sample_rate_hz
@@ -68,10 +93,15 @@ class LocalTranscriptionService:
 
             overlap = self._session_overlap.get(session_id, b"")
             provider_chunk = overlap + processed.pcm
-            result = self.provider.transcribe_chunk(
-                session_id=session_id,
-                pcm_chunk=provider_chunk,
-            )
+            try:
+                result = self.provider.transcribe_chunk(
+                    session_id=session_id,
+                    pcm_chunk=provider_chunk,
+                )
+                self._provider_status = "connected"
+            except Exception:
+                self._provider_status = "degraded"
+                raise
 
             self._session_overlap[session_id] = self.preprocessor.overlap_bytes(processed.pcm)
 
@@ -100,7 +130,12 @@ class LocalTranscriptionService:
 
         with self.metrics.measure() as timer:
             timer.operation = "finalize"
-            result = self.provider.finalize_session(session_id=session_id)
+            try:
+                result = self.provider.finalize_session(session_id=session_id)
+                self._provider_status = "connected"
+            except Exception:
+                self._provider_status = "degraded"
+                raise
         self._session_overlap.pop(session_id, None)
         return result
 

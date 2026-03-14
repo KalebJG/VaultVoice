@@ -15,3 +15,5 @@ class ServiceHealth:
     active_profile: str = "accuracy"
     fallback_active: bool = False
     fallback_reason: str | None = None
+    microphone_status: str = "available"
+    provider_status: str = "connected"
