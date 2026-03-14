@@ -1,6 +1,6 @@
 # Desktop Packaging and Distribution Pipeline
 
-This repository ships desktop build artifacts using the GitHub Actions workflow at `.github/workflows/desktop-distribution.yml`.
+This repository ships desktop build artifacts using the GitHub Actions workflow at `.github/workflows/release-desktop.yml`.
 
 ## Versioning
 - Source of truth: Git tag in the format `vMAJOR.MINOR.PATCH`.
