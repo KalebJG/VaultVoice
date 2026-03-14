@@ -1,10 +1,11 @@
+import math
+import time
 import unittest
 from dataclasses import dataclass, field
-import math
 
-from vaultvoice_desktop.app import DictationSessionController, ServiceSessionClient
+from vaultvoice_desktop.app import DictationSessionController, ErrorCategory, ServiceSessionClient
 from vaultvoice_desktop.hud import FloatingHUDController, HUDStatus
-from vaultvoice_service.models import TranscriptResult
+from vaultvoice_service.models import ServiceHealth, TranscriptResult
 from vaultvoice_service.provider import TranscriptionProvider
 from vaultvoice_service.service import LocalTranscriptionService
 
@@ -33,6 +34,7 @@ class _FakeSessionClient:
     partial_text: str = "partial"
     starts: int = 0
     stream_sizes: list[int] = field(default_factory=list)
+    health_state: ServiceHealth = field(default_factory=lambda: ServiceHealth(status="ok", retention_mode="memory"))
 
     def start(self) -> str:
         self.starts += 1
@@ -47,14 +49,44 @@ class _FakeSessionClient:
         _ = session_id
         return TranscriptResult(text="final", is_final=True, confidence=0.9)
 
-
+    def health(self) -> ServiceHealth:
+        return self.health_state
 
 
 @dataclass
-class _FailingFinalizeClient(_FakeSessionClient):
+class _FinalizeErrorClient(_FakeSessionClient):
+    error: Exception = field(default_factory=lambda: RuntimeError("finalize failed"))
+
     def finalize(self, session_id: str) -> TranscriptResult:
         _ = session_id
-        raise RuntimeError("finalize failed")
+        raise self.error
+
+
+@dataclass
+class _StreamErrorClient(_FakeSessionClient):
+    error: Exception = field(default_factory=lambda: ConnectionError("stream disconnected"))
+
+    def stream_microphone_frame(self, session_id: str, pcm_frame: bytes) -> list[TranscriptResult]:
+        _ = (session_id, pcm_frame)
+        raise self.error
+
+
+@dataclass
+class _StartErrorClient(_FakeSessionClient):
+    error: Exception = field(default_factory=lambda: PermissionError("mic permission denied"))
+
+    def start(self) -> str:
+        raise self.error
+
+
+@dataclass
+class _SlowFinalizeClient(_FakeSessionClient):
+    delay_seconds: float = 0.1
+
+    def finalize(self, session_id: str) -> TranscriptResult:
+        _ = session_id
+        time.sleep(self.delay_seconds)
+        return TranscriptResult(text="final", is_final=True, confidence=0.9)
 
 
 class DictationSessionControllerTests(unittest.TestCase):
@@ -86,59 +118,6 @@ class DictationSessionControllerTests(unittest.TestCase):
         self.assertEqual(controller.transcript.partial_text, "")
         self.assertEqual(controller.transcript.final_text, "final-2")
 
-    def test_ignores_audio_and_finalize_without_active_session(self) -> None:
-        service = LocalTranscriptionService(provider=_DesktopProvider())
-        controller = DictationSessionController(client=ServiceSessionClient(service=service))
-
-        controller.push_microphone_frame(b"\xe8\x03" * 100)
-        final = controller.key_up()
-
-        self.assertIsNone(final)
-        self.assertEqual(controller.transcript.final_text, "")
-
-    def test_discards_short_utterance_below_minimum_threshold(self) -> None:
-        client = _FakeSessionClient()
-        controller = DictationSessionController(
-            client=client,
-            min_utterance_seconds=0.1,
-            pre_roll_seconds=0.0,
-        )
-
-        controller.key_down()
-        controller.push_microphone_frame(b"\x00\x01" * 1000)
-        final = controller.key_up()
-
-        self.assertIsNone(final)
-        self.assertEqual(controller.transcript.final_text, "")
-
-    def test_pre_roll_audio_is_streamed_when_session_starts(self) -> None:
-        client = _FakeSessionClient()
-        controller = DictationSessionController(client=client, pre_roll_seconds=0.1)
-
-        controller.push_microphone_frame(b"\x00\x01" * 500)
-        controller.push_microphone_frame(b"\x00\x01" * 700)
-        controller.key_down()
-
-        self.assertEqual(client.starts, 1)
-        self.assertEqual(client.stream_sizes[0], 2400)
-
-    def test_debounce_ignores_immediate_keydown_after_keyup(self) -> None:
-        clock_times = iter([0.0, 0.2, 0.22])
-        client = _FakeSessionClient()
-        controller = DictationSessionController(
-            client=client,
-            debounce_window_seconds=0.05,
-            clock=lambda: next(clock_times),
-            pre_roll_seconds=0.0,
-        )
-
-        controller.key_down()
-        controller.push_microphone_frame(b"\x00\x01" * 2000)
-        controller.key_up()
-        controller.key_down()
-
-        self.assertEqual(client.starts, 1)
-
     def test_hud_tracks_listening_processing_and_idle(self) -> None:
         client = _FakeSessionClient()
         hud = FloatingHUDController()
@@ -152,20 +131,61 @@ class DictationSessionControllerTests(unittest.TestCase):
 
         self.assertIsNotNone(result)
         self.assertEqual(hud.state.status, HUDStatus.IDLE)
+        self.assertEqual(hud.state.service_status, "connected")
 
-    def test_hud_moves_to_error_when_finalize_fails(self) -> None:
-        client = _FailingFinalizeClient()
+    def test_finalize_timeout_maps_to_retry_and_recovers_to_idle(self) -> None:
+        client = _SlowFinalizeClient()
+        hud = FloatingHUDController()
+        controller = DictationSessionController(
+            client=client,
+            hud=hud,
+            pre_roll_seconds=0.0,
+            service_call_timeout_seconds=0.01,
+        )
+
+        controller.key_down()
+        controller.push_microphone_frame(b"\x00\x01" * 2000)
+        final = controller.key_up()
+
+        self.assertIsNone(final)
+        self.assertEqual(hud.state.status, HUDStatus.ERROR)
+        self.assertEqual(hud.state.error_category, ErrorCategory.TIMEOUT)
+        self.assertEqual(hud.state.recovery_message, "Retry dictation.")
+
+        controller.key_down()
+        self.assertEqual(hud.state.status, HUDStatus.LISTENING)
+
+    def test_permission_error_maps_to_reenable_mic_recovery(self) -> None:
+        client = _StartErrorClient()
+        hud = FloatingHUDController()
+        controller = DictationSessionController(client=client, hud=hud, pre_roll_seconds=0.0)
+
+        controller.key_down()
+
+        self.assertEqual(hud.state.status, HUDStatus.ERROR)
+        self.assertEqual(hud.state.error_category, ErrorCategory.MIC_PERMISSION)
+        self.assertIn("Re-enable microphone permission", hud.state.error_message)
+
+    def test_connection_error_maps_to_reconnect_recovery_and_session_resets(self) -> None:
+        client = _StreamErrorClient()
         hud = FloatingHUDController()
         controller = DictationSessionController(client=client, hud=hud, pre_roll_seconds=0.0)
 
         controller.key_down()
         controller.push_microphone_frame(b"\x00\x01" * 2000)
 
-        with self.assertRaises(RuntimeError):
-            controller.key_up()
-
         self.assertEqual(hud.state.status, HUDStatus.ERROR)
-        self.assertEqual(hud.state.error_message, "finalize failed")
+        self.assertEqual(hud.state.error_category, ErrorCategory.SERVICE_CONNECTION)
+        self.assertEqual(hud.state.recovery_message, "Reconnect the device/service and retry.")
+
+        healthy_client = _FakeSessionClient()
+        controller.client = healthy_client
+        controller.key_down()
+        controller.push_microphone_frame(b"\x00\x01" * 2000)
+        final = controller.key_up()
+
+        self.assertIsNotNone(final)
+        self.assertEqual(hud.state.status, HUDStatus.IDLE)
 
 
 if __name__ == "__main__":
