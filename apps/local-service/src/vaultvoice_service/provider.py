@@ -25,8 +25,12 @@ class TranscriptionProvider(ABC):
 class LocalStubProvider(TranscriptionProvider):
     """Scaffold provider for end-to-end plumbing before STT integration."""
 
+    def __init__(self) -> None:
+        self._session_counter = 0
+
     def start_session(self) -> str:
-        return "session-stub"
+        self._session_counter += 1
+        return f"session-stub-{self._session_counter}"
 
     def transcribe_chunk(self, session_id: str, pcm_chunk: bytes) -> TranscriptResult:
         _ = (session_id, pcm_chunk)

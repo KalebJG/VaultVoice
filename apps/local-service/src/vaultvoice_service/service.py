@@ -56,6 +56,9 @@ class LocalTranscriptionService:
 
     def stream_chunk(self, session_id: str, pcm_chunk: bytes) -> TranscriptResult:
         self.retention.assert_memory_only()
+        if session_id not in self._session_chunkers:
+            raise KeyError(f"Unknown session_id: {session_id}")
+
         with self.metrics.measure() as timer:
             timer.operation = "stream_chunk"
             processed = self.preprocessor.preprocess_chunk(pcm_chunk)
@@ -78,7 +81,6 @@ class LocalTranscriptionService:
         self.metrics.chunk_processed()
         return result
 
-
     def stream_microphone_frame(self, session_id: str, pcm_frame: bytes) -> list[TranscriptResult]:
         self.retention.assert_memory_only()
         chunker = self._session_chunkers.get(session_id)
@@ -92,17 +94,22 @@ class LocalTranscriptionService:
 
     def finalize(self, session_id: str) -> TranscriptResult:
         self.retention.assert_memory_only()
-        chunker = self._session_chunkers.pop(session_id, None)
-        if chunker is not None:
+        chunker = self._session_chunkers.get(session_id)
+        if chunker is None:
+            raise KeyError(f"Unknown session_id: {session_id}")
+
+        try:
             tail = chunker.flush()
             if tail:
                 self.stream_chunk(session_id=session_id, pcm_chunk=tail)
 
-        with self.metrics.measure() as timer:
-            timer.operation = "finalize"
-            result = self.provider.finalize_session(session_id=session_id)
-        self._session_overlap.pop(session_id, None)
-        return result
+            with self.metrics.measure() as timer:
+                timer.operation = "finalize"
+                result = self.provider.finalize_session(session_id=session_id)
+            return result
+        finally:
+            self._session_chunkers.pop(session_id, None)
+            self._session_overlap.pop(session_id, None)
 
     def metrics_snapshot(self) -> MetricsSnapshot:
         return self.metrics.snapshot()

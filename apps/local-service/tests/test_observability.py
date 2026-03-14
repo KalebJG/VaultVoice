@@ -33,6 +33,10 @@ class _FailingProvider(_FixedProvider):
         raise RuntimeError("provider error")
 
 
+class _FailingFinalizeProvider(_FixedProvider):
+    def finalize_session(self, session_id: str) -> TranscriptResult:
+        _ = session_id
+        raise RuntimeError("finalize error")
 
 
 class _CpuSequenceMetrics(PrivacySafeMetrics):
@@ -112,7 +116,6 @@ class ObservabilityTests(unittest.TestCase):
         expected_overlap = service.preprocessor.overlap_bytes(first_chunk)
         self.assertEqual(provider.last_chunk, expected_overlap + second_chunk)
 
-
     def test_microphone_frames_chunked_and_flushed_on_finalize(self) -> None:
         provider = _FixedProvider()
         service = LocalTranscriptionService(provider=provider)
@@ -128,7 +131,6 @@ class ObservabilityTests(unittest.TestCase):
         self.assertEqual(len(provider.chunks), 2)
         self.assertEqual(len(provider.chunks[0]), 10240)
         self.assertEqual(len(provider.chunks[1]), 5600)
-
 
     def test_health_surfaces_active_profile_and_fallback_state(self) -> None:
         metrics = _CpuSequenceMetrics([1.0, 1.0, 1.0])
@@ -165,6 +167,51 @@ class ObservabilityTests(unittest.TestCase):
 
         snapshot = service.metrics_snapshot()
         self.assertEqual(snapshot.total_errors, 1)
+
+    def test_multiple_sequential_sessions_are_unique_and_isolated(self) -> None:
+        service = LocalTranscriptionService()
+
+        first_session = service.start()
+        second_session = service.start()
+
+        self.assertNotEqual(first_session, second_session)
+        self.assertIn(first_session, service._session_overlap)
+        self.assertIn(second_session, service._session_overlap)
+
+        first_final = service.finalize(first_session)
+        second_final = service.finalize(second_session)
+
+        self.assertTrue(first_final.is_final)
+        self.assertTrue(second_final.is_final)
+
+    def test_unknown_session_id_rejected_for_stream_and_finalize(self) -> None:
+        service = LocalTranscriptionService(provider=_FixedProvider())
+
+        with self.assertRaisesRegex(KeyError, "Unknown session_id"):
+            service.stream_chunk("missing-session", b"\xe8\x03" * 160)
+
+        with self.assertRaisesRegex(KeyError, "Unknown session_id"):
+            service.finalize("missing-session")
+
+    def test_finalize_cleans_up_session_state(self) -> None:
+        service = LocalTranscriptionService(provider=_FixedProvider())
+        session_id = service.start()
+
+        service.stream_chunk(session_id, b"\xe8\x03" * 200)
+        service.finalize(session_id)
+
+        self.assertNotIn(session_id, service._session_overlap)
+        self.assertNotIn(session_id, service._session_chunkers)
+
+    def test_finalize_failure_still_cleans_up_session_state(self) -> None:
+        service = LocalTranscriptionService(provider=_FailingFinalizeProvider())
+        session_id = service.start()
+
+        with self.assertRaises(RuntimeError):
+            service.finalize(session_id)
+
+        self.assertNotIn(session_id, service._session_overlap)
+        self.assertNotIn(session_id, service._session_chunkers)
 
     def test_safe_event_blocks_transcript_fields(self) -> None:
         metrics = PrivacySafeMetrics()
