@@ -1,6 +1,13 @@
 """Desktop shell scaffolding for VaultVoice MVP."""
 
-from .app import DictationSessionController, ServiceSessionClient, TranscriptState
+from .app import (
+    AudioCapturePolicy,
+    DictationLifecycleState,
+    DictationLifecycleStateMachine,
+    DictationSessionController,
+    ServiceSessionClient,
+    TranscriptState,
+)
 from .shortcuts import (
     DEFAULT_SHORTCUT,
     FALLBACK_SHORTCUT,
@@ -12,6 +19,9 @@ from .shortcuts import (
 __all__ = [
     "DEFAULT_SHORTCUT",
     "FALLBACK_SHORTCUT",
+    "AudioCapturePolicy",
+    "DictationLifecycleState",
+    "DictationLifecycleStateMachine",
     "DictationSessionController",
     "GlobalShortcutManager",
     "ServiceSessionClient",
