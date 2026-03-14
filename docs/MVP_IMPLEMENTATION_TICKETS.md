@@ -16,7 +16,9 @@ Product constraints baked into this plan:
 **Implementation Status:**
 - Completed: T0.1, T0.2
 - Completed: T2.4, T3.1, T3.2
-- Next up: T3.3 push-to-talk lifecycle hardening
+- Completed: T3.3
+- Completed: T3.4
+- Next up: T4.1 failure handling and recovery
 
 ### T0.1 Initialize repository structure and standards ✅ Completed
 **Goal:** Create a predictable skeleton for desktop app + local transcription service.
@@ -155,7 +157,11 @@ Product constraints baked into this plan:
 - Push-to-talk works from background apps.
 - Unsupported shortcut path is clearly handled with fallback + user messaging.
 
-### T3.3 Push-to-talk lifecycle hardening
+### T3.3 Push-to-talk lifecycle hardening ✅ Completed
+**Progress Notes:**
+- ✅ Added key transition debounce logic to prevent accidental immediate re-trigger after key-up bounce.
+- ✅ Added minimum utterance gating so very short taps do not produce final transcript text.
+- ✅ Added a tiny in-memory pre-roll audio buffer that is flushed into the next active session to reduce clipped starts.
 **Goal:** Ensure keydown/keyup feels precise and safe.
 **Tasks:**
 - Start capture on keydown, finalize on keyup.
@@ -165,7 +171,11 @@ Product constraints baked into this plan:
 - Rapid taps and long holds behave predictably.
 - No “stuck recording” state after key transitions.
 
-### T3.4 Tiny floating HUD
+### T3.4 Tiny floating HUD ✅ Completed
+**Progress Notes:**
+- ✅ Added a floating HUD state controller with explicit Idle / Listening / Processing / Error states.
+- ✅ Added HUD status metadata for active shortcut label and microphone availability indicators.
+- ✅ Added in-memory drag position and opacity controls for unobtrusive HUD customization.
 **Goal:** Instant user trust in recording state.
 **Tasks:**
 - Build always-on-top mini HUD states: Idle / Listening / Processing / Error.

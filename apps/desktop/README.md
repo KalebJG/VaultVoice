@@ -5,11 +5,13 @@ This module hosts the lightweight desktop shell scaffolding for:
 - Global shortcut registration with `fn` default and `fn + Space` fallback
 - Local-service integration via a dedicated session client adapter
 - In-memory transcript state for live partial and final text display
+- Tiny floating HUD state model for Idle / Listening / Processing / Error
 
 ## Current implementation
 - `vaultvoice_desktop.app.ServiceSessionClient` bridges desktop controls to `LocalTranscriptionService`.
 - `vaultvoice_desktop.app.DictationSessionController` provides push-to-talk control methods and in-memory transcript state.
 - `vaultvoice_desktop.shortcuts.GlobalShortcutManager` handles default shortcut registration, fallback behavior, and user-selected shortcuts.
+- `vaultvoice_desktop.hud.FloatingHUDController` manages HUD status, shortcut/mic indicators, drag position, and opacity settings.
 - Tests validate desktop-to-service dictation flow and shortcut fallback/customization behavior.
 
 ## Running tests
